@@ -60,6 +60,9 @@ func (s State) Mode() Mode {
 }
 
 // GeneratedLicense returns the caller-decided generated-output license.
+// Direct state returns the zero value until the caller elects a license
+// (ElectAGPL); consumers producing licensed output must refuse to generate
+// while no election has been made.
 func (s State) GeneratedLicense() GeneratedLicense {
 	return s.generatedLicense
 }
@@ -111,6 +114,7 @@ func (s State) WorkspaceID() (string, bool) {
 
 type directConfig struct {
 	telemetryDisabled bool
+	generatedLicense  GeneratedLicense
 }
 
 // DirectOption configures explicit direct generation.
@@ -131,10 +135,23 @@ func DisableTelemetry() DirectOption {
 	})
 }
 
+// ElectAGPL records the caller's explicit acceptance of AGPL-3.0-only
+// licensing for the generated output. Direct generation carries no license
+// until the caller elects one; commercial output can never be elected here —
+// it requires authenticated caller input (a validated license token).
+func ElectAGPL() DirectOption {
+	return directOption(func(config *directConfig) {
+		config.generatedLicense = GeneratedLicenseAGPL
+	})
+}
+
 type contextKey struct{}
 
-// WithDirect records explicit direct generation. Direct output is always AGPL
-// licensed; commercial output requires authenticated caller input.
+// WithDirect records explicit direct generation. Direct state carries NO
+// generated-output license until the caller elects one with ElectAGPL —
+// consumers that produce licensed output must treat an empty
+// GeneratedLicense as "no election made" and refuse to generate. Commercial
+// output requires authenticated caller input and cannot be elected here.
 func WithDirect(ctx context.Context, options ...DirectOption) context.Context {
 	config := directConfig{}
 	for _, option := range options {
@@ -146,7 +163,7 @@ func WithDirect(ctx context.Context, options ...DirectOption) context.Context {
 	return context.WithValue(ctx, contextKey{}, State{
 		mode:              ModeDirect,
 		telemetryDisabled: config.telemetryDisabled,
-		generatedLicense:  GeneratedLicenseAGPL,
+		generatedLicense:  config.generatedLicense,
 	})
 }
 
