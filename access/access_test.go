@@ -16,9 +16,17 @@ func TestWithDirect(t *testing.T) {
 		name              string
 		options           []access.DirectOption
 		telemetryDisabled bool
+		license           access.GeneratedLicense
 	}{
-		{name: "defaults telemetry enabled"},
+		{name: "defaults carry no license election"},
 		{name: "explicit telemetry opt-out", options: []access.DirectOption{access.DisableTelemetry()}, telemetryDisabled: true},
+		{name: "explicit AGPL election", options: []access.DirectOption{access.ElectAGPL()}, license: access.GeneratedLicenseAGPL},
+		{
+			name:              "election composes with telemetry opt-out",
+			options:           []access.DirectOption{access.ElectAGPL(), access.DisableTelemetry()},
+			telemetryDisabled: true,
+			license:           access.GeneratedLicenseAGPL,
+		},
 	}
 
 	for _, tt := range testCases {
@@ -31,8 +39,8 @@ func TestWithDirect(t *testing.T) {
 			if state.Mode() != access.ModeDirect {
 				t.Fatalf("expected direct mode, got %d", state.Mode())
 			}
-			if state.GeneratedLicense() != access.GeneratedLicenseAGPL {
-				t.Fatalf("expected AGPL generated license, got %q", state.GeneratedLicense())
+			if state.GeneratedLicense() != tt.license {
+				t.Fatalf("expected generated license %q, got %q", tt.license, state.GeneratedLicense())
 			}
 			if state.TelemetryDisabled() != tt.telemetryDisabled {
 				t.Fatalf("expected telemetry disabled=%t", tt.telemetryDisabled)
